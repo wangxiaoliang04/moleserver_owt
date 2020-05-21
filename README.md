@@ -1,6 +1,6 @@
 # moleserver
 
-<div align=center><img width="204" height="196" src="https://gitee.com/akinggw/moleserver/raw/master/screen/mslogo.png"/></div>  
+<div align=center><img width="475" height="404" src="https://gitee.com/akinggw/moleserver/raw/master/screen/mslogo.png"/></div>  
 
 #### 介绍
 一个C++编写的基于websocket协议的游戏服务器框架，运行于linux上，底层主要基于epoll，性能强劲，登录验证，注册，游戏框架基本全部做好，您只需要添加游戏逻辑就可以了。
