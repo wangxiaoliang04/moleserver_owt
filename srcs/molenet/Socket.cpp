@@ -47,6 +47,7 @@ Socket::Socket(SOCKET fd, uint32 sendbuffersize, uint32 recvbuffersize) : m_fd(f
 	m_BytesRecieved = 0;
 	m_html5connected.SetVal(false);
 	m_htmlMsgProcessed.SetVal(false);
+	memset(&m_packetheard,0,sizeof(m_packetheard));
 
 	// IOCP Member Variables
 #ifdef CONFIG_USE_IOCP
@@ -68,7 +69,6 @@ Socket::Socket(SOCKET fd, uint32 sendbuffersize, uint32 recvbuffersize) : m_fd(f
 	m_readMsgBool.SetVal(true);
 
 	m_buffer_pos = 0;
-    nMinExpectedSize = 6;
     masksOffset = 0;
     payloadSize = 0;
 
@@ -266,7 +266,7 @@ bool Socket::SendHtml5(const uint8 * Bytes,uint32 Size)
 		out.writeBytes(len, 8);
 	}
 
-	out.writeBytes((uint8*)Bytes,Size);
+	out.writeBytes((uint8*)Bytes,payloadSize);
 
 	return Send((const uint8*)out.getData(),out.getLength());
 }
@@ -346,201 +346,225 @@ NetClient::~NetClient()
  */
 void NetClient::OnRead(uint32 size)
 {
-	m_heartJitter = time(NULL);
+	try
+	{		
+		m_heartJitter = time(NULL);
 
-	if(m_html5connected.GetVal() == false)
-	{
-	    char buffer[MOL_REV_BUFFER_SIZE_TWO];
+		//printf("NetClient::OnRead1:%d\n",size);
 
-		// È¡µÃÊµ¼ÊÊý¾Ý°ü
-		GetReadBuffer().Read((uint8*)buffer,size);
-
-		memcpy(m_buffer+m_buffer_pos,buffer,size);
-		m_buffer_pos += size;
-
-		WebsocketHandshakeMessage request(m_buffer,m_buffer_pos);
-
-		if(request.Parse())
+		if(m_html5connected.GetVal() == false)
 		{
-			WebsocketHandshakeMessage response;
+			GetReadBuffer().Read((uint8*)m_buffer+m_buffer_pos,size);
+			m_buffer_pos += size;
 
-			std::string server_key = request.GetField("Sec-WebSocket-Key");
-			server_key += "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+			WebsocketHandshakeMessage request(m_buffer,m_buffer_pos);
 
-			SHA1        sha;
-			unsigned int    message_digest[5];
+			if(request.Parse())
+			{
+				WebsocketHandshakeMessage response;
 
-			sha.Reset();
-			sha << server_key.c_str();
+				std::string server_key = request.GetField("Sec-WebSocket-Key");
+				server_key += "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 
-			sha.Result(message_digest);
+				SHA1        sha;
+				unsigned int    message_digest[5];
 
-			for (int i = 0; i < 5; i++) {
-				message_digest[i] = htonl(message_digest[i]);
+				sha.Reset();
+				sha << server_key.c_str();
+
+				sha.Result(message_digest);
+
+				for (int i = 0; i < 5; i++) {
+					message_digest[i] = htonl(message_digest[i]);
+				}
+
+				server_key = base64_encode(
+					reinterpret_cast<const unsigned char*>
+					(message_digest),20
+					);
+
+				response.SetField("Upgrade", "websocket");
+				response.SetField("Connection", "Upgrade");
+				response.SetField("Sec-WebSocket-Accept", server_key);
+
+				std::string responsestr = response.Serialize();
+				Send((const uint8*)responsestr.c_str(),responsestr.length());
+
+				m_buffer_pos=0;
+				m_html5connected.SetVal(true);
+				memset(&m_packetheard,0,sizeof(m_packetheard));
+				sSocketMgr.PushMessage(MessageStru(MES_TYPE_ON_CONNECTED,(uint32)GetFd()));
 			}
 
-			server_key = base64_encode(
-				reinterpret_cast<const unsigned char*>
-				(message_digest),20
-				);
-
-			response.SetField("Upgrade", "websocket");
-			response.SetField("Connection", "Upgrade");
-			response.SetField("Sec-WebSocket-Accept", server_key);
-
-			std::string responsestr = response.Serialize();
-			Send((const uint8*)responsestr.c_str(),responsestr.length());
-
-			m_buffer_pos=0;
-			m_html5connected.SetVal(true);
-			sSocketMgr.PushMessage(MessageStru(MES_TYPE_ON_CONNECTED,(uint32)GetFd()));
+			return;
 		}
 
-		return;
-	}
+		while(true)
+		{
+		    if(m_htmlMsgProcessed.GetVal() == false)
+		    {
+		    	if(m_packetheard.payloadFlags == 0 && m_packetheard.basicSize == 0) {
+			    	if(GetReadBuffer().GetSize() < 2) {
+			            return;
+			    	}
 
-    char buffer[MOL_REV_BUFFER_SIZE_TWO];
+			        GetReadBuffer().Read((uint8*)m_buffer+m_buffer_pos,2);
+			        m_buffer_pos += 2;
 
-    if(m_htmlMsgProcessed.GetVal() == false)
-    {
-        if (GetReadBuffer().GetSize() < nMinExpectedSize)
-            return;
+			        m_packetheard.payloadFlags = m_buffer[0];
+			        if (m_packetheard.payloadFlags != 129){
+			        	memset(&m_packetheard,0,sizeof(m_packetheard));
+			            return;
+			        }
 
-        // È¡µÃÊµ¼ÊÊý¾Ý°ü
-        GetReadBuffer().Read((uint8*)buffer,nMinExpectedSize);
+			        m_packetheard.basicSize = m_buffer[1] & 0x7F;		    		
+		    	}
 
-        memcpy(m_buffer+m_buffer_pos,buffer,nMinExpectedSize);
-        m_buffer_pos += nMinExpectedSize;
 
-        uint8 payloadFlags = buffer[0];
-        if (payloadFlags != 129)
-            return;
+		        if (m_packetheard.basicSize <= 125)
+		        {
+		            payloadSize = m_packetheard.basicSize;
+		            masksOffset = 2;
+		        }
+		        else if (m_packetheard.basicSize == 126)
+		        {
+		            if (GetReadBuffer().GetSize() < 2){
+		                return;
+		            }
 
-        uint8 basicSize = buffer[1] & 0x7F;
+			        GetReadBuffer().Read((uint8*)m_buffer+m_buffer_pos,2);
+			        m_buffer_pos += 2;
 
-        if (basicSize <= 125)
-        {
-            payloadSize = basicSize;
-            masksOffset = 2;
-        }
-        else if (basicSize == 126)
-        {
-            nMinExpectedSize += 2;
-            if (size < nMinExpectedSize)
+		            payloadSize = ntohs( *(u_short*) (m_buffer + 2) );
+		            masksOffset = 4;
+		        }
+		        else if (m_packetheard.basicSize == 127)
+		        {
+		            if (GetReadBuffer().GetSize() < 8) {
+		                return;
+		            }
+
+			        GetReadBuffer().Read((uint8*)m_buffer+m_buffer_pos,8);
+			        m_buffer_pos += 8;
+
+		            payloadSize = ntohl( *(u_long*) (m_buffer + 2) );
+		            masksOffset = 10;
+		        }
+		        else {
+		            return;
+		        }
+
+		        m_htmlMsgProcessed.SetVal(true);
+		    }
+
+            if (GetReadBuffer().GetSize()  < payloadSize+4)
+            {
                 return;
-            payloadSize = ntohs( *(u_short*) (buffer + 2) );
-            masksOffset = 4;
-        }
-        else if (basicSize == 127)
-        {
-            nMinExpectedSize += 8;
-            if (size < nMinExpectedSize)
-                return;
-            payloadSize = ntohl( *(u_long*) (buffer + 2) );
-            masksOffset = 10;
-        }
-        else
-            return;
+            }
 
-        nMinExpectedSize += payloadSize;
-        m_htmlMsgProcessed.SetVal(true);
-    }
+	        GetReadBuffer().Read((uint8*)m_buffer+m_buffer_pos,payloadSize+4);
+	        m_buffer_pos += (payloadSize+4);
 
-    if (GetReadBuffer().GetSize() < nMinExpectedSize-6)
-        return;
+		    uint8 masks[4];
+		    memcpy(masks, m_buffer + masksOffset, 4);
 
-    GetReadBuffer().Read((uint8*)buffer,nMinExpectedSize-6);
+		    char* payload = (char*)allocBytes((payloadSize + 1) * sizeof(char));
+		    memcpy(payload, m_buffer + masksOffset + 4, payloadSize);
+		    for (int64 i = 0; i < payloadSize; i++) {
+		        payload[i] = (payload[i] ^ masks[i%4]);
+		    }
+			payload[payloadSize] = '\0';
 
-    memcpy(m_buffer+m_buffer_pos,buffer,nMinExpectedSize-6);
-
-    uint8 masks[4];
-    memcpy(masks, m_buffer + masksOffset, 4);
-
-    char* payload = (char*)allocBytes((payloadSize + 1) * sizeof(char));
-    memcpy(payload, m_buffer + masksOffset + 4, payloadSize);
-    for (int64 i = 0; i < payloadSize; i++) {
-        payload[i] = (payload[i] ^ masks[i%4]);
-    }
-	payload[payloadSize] = '\0';
-
-	if(size > 0 && size < MOL_REV_BUFFER_SIZE_TWO)
-	{
-		//ÓÃÓÚ´¦Àí¿Í»§¶ËµÄÒ»Ð©¹¥»÷ÐÐÎª
-		if(m_readTimer.GetVal() == 0)
-		{
-			m_readTimer.SetVal((ulong)time(NULL));
-		}
-
-		ulong tmpTime = (ulong)time(NULL) - m_readTimer.GetVal();
-
-		if(tmpTime > 1)
-		{
-			if(m_readMsgCount.GetVal() > IDD_SECOND_MSG_MAX_COUNT)
+			if(m_buffer_pos > 0 && m_buffer_pos < MOL_REV_BUFFER_SIZE_TWO)
 			{
-				m_readMsgBool.SetVal(false);
-			}
-			else
-			{
-				m_readTimer.SetVal(0);
-				m_readMsgCount.SetVal(0);
-			}
-		}
-
-		if(tmpTime > 60)
-		{
-			m_readTimer.SetVal(0);
-			m_readMsgCount.SetVal(0);
-			m_readMsgBool.SetVal(true);
-		}
-
-		if(m_readMsgBool.GetVal())
-		{
-			CMolMessageIn *in = NULL;
-
-			try
-			{
-				in = new CMolMessageIn(payload,payloadSize + 1);
-			}
-			catch (std::exception e)
-			{
-				char str[256];
-				sprintf(str,"½ÓÊÕÊý¾ÝÒì³£%s:\n",e.what());
-				LOG_DEBUG(str);
-				//perr->Delete();
-
-				if(in)
+				if(m_readTimer.GetVal() == 0)
 				{
-					delete in;
-					in = NULL;
+					m_readTimer.SetVal((ulong)time(NULL));
+				}
+
+				ulong tmpTime = (ulong)time(NULL) - m_readTimer.GetVal();
+
+				if(tmpTime > 1)
+				{
+					if(m_readMsgCount.GetVal() > IDD_SECOND_MSG_MAX_COUNT)
+					{
+						m_readMsgBool.SetVal(false);
+					}
+					else
+					{
+						m_readTimer.SetVal(0);
+						m_readMsgCount.SetVal(0);
+					}
+				}
+
+				if(tmpTime > 60)
+				{
+					m_readTimer.SetVal(0);
+					m_readMsgCount.SetVal(0);
+					m_readMsgBool.SetVal(true);
+				}
+
+				if(m_readMsgBool.GetVal())
+				{
+					CMolMessageIn *in = NULL;
+
+					try
+					{
+						in = new CMolMessageIn(payload,payloadSize + 1);
+					}
+					catch (std::exception e)
+					{
+						char str[256];
+						sprintf(str,"%s:\n",e.what());
+						LOG_DEBUG(str);
+						//perr->Delete();
+
+						if(in)
+						{
+							SafeDelete(in);
+							in = NULL;
+						}
+					}
+
+					if(in)
+					{
+						if(atoi(payload) == IDD_MESSAGE_HEART_BEAT)
+						{
+							//printf("MES_TYPE_ON_READ1:%s\n",payload);
+							SafeDelete(in);
+							in = NULL;
+						}
+						else
+						{
+							//printf("MES_TYPE_ON_READ2:%s\n",payload);
+							sSocketMgr.PushMessage(MessageStru(MES_TYPE_ON_READ,(uint32)GetFd(),in));
+							//ServerGameFrameManager.OnProcessNetMes(this,in);
+						}
+
+						++m_readMsgCount;
+					}
 				}
 			}
 
-			if(in)
-			{
-				// Èç¹ûÊÇÐÄÌøÐÅÏ¢¾Í²»ÓÃ´¦ÀíÁË
-				if(atoi(payload) == IDD_MESSAGE_HEART_BEAT)
-				{
-					delete in;
-					in = NULL;
-				}
-				else
-				{
-					sSocketMgr.PushMessage(MessageStru(MES_TYPE_ON_READ,(uint32)GetFd(),in));
-					//ServerGameFrameManager.OnProcessNetMes(this,in);
-				}
-
-				++m_readMsgCount;
-			}
+		    masksOffset = 0;
+		    payloadSize = 0;
+		    m_buffer_pos = 0;
+			m_htmlMsgProcessed.SetVal(false);
+			memset(&m_packetheard,0,sizeof(m_packetheard));
+			deallocBytes(payload);
+			payload = NULL;
 		}
 	}
+	catch (std::exception e)
+	{
+		//m_readMutex.Release();
+		char str[256];
+		sprintf(str,"接收数据异常%s:\n",e.what());
+		LOG_DEBUG(str);
 
-    nMinExpectedSize = 6;
-    masksOffset = 0;
-    payloadSize = 0;
-    m_buffer_pos = 0;
-	m_htmlMsgProcessed.SetVal(false);
-	deallocBytes(payload);
-	payload = NULL;
+		// 关闭这个客户端
+		Disconnect();
+	}
 
 	//m_readMutex.Acquire();
 /*	while(true)
@@ -763,6 +787,8 @@ bool MolNetworkUpdate::run()
 
 		//	m_UpdateTime = 0;
 		//}
+
+		MolTcpSocketClientManager.Update();			
 
 		if(m_threadTimer == 0)
 			m_threadTimer = GetTickCount();

@@ -9,6 +9,7 @@ void InitMolNet(const char *logfile)
 {
     new SocketMgr;
     new SocketGarbageCollector;
+    new CTcpSocketClientManager();
 
     ThreadPool.Startup();
     sLog.Init(-1,LOGON_LOG,logfile);
@@ -31,8 +32,11 @@ void CleanMolNet(void)
     sSocketMgr.ClearMesList();
 	sSocketGarbageCollector.DeleteSocket();
 
+	MolTcpSocketClientManager.deleteAllTcpSocketClient();
+
     delete SocketMgr::getSingletonPtr();
     delete SocketGarbageCollector::getSingletonPtr();
+	delete CTcpSocketClientManager::getSingletonPtr();    
 
     SafeDelete(m_ServerSocket);
     SafeDelete(m_NetworkUpdate);

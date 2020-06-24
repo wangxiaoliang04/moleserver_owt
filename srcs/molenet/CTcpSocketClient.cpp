@@ -5,6 +5,13 @@
 #include "gettimeofday.h"
 #include "rc4.h"
 #include "ThreadPool.h"
+#include "Log.h"
+
+#include "netallocator/NedAllocatorImpl.h"
+#include "html5/sha1.h"
+#include "html5/base64.h"
+#include "html5/WebsocketDataMessage.h"
+#include "html5/WebsocketHandshakeMessage.h"
 
 #ifdef _WIN32
 	#pragma comment(lib, "ws2_32.lib")
@@ -26,8 +33,6 @@ typedef struct
 #define SOCKET_ERROR -1
 #define INVALID_SOCKET -1
 
-initialiseSingleton(CMolGameTcpSocketClient);
-initialiseSingleton(CMolChatTcpSocketClient);
 initialiseSingleton(CTcpSocketClientManager);
 
 static Thread* pThread = NULL;
@@ -46,11 +51,30 @@ CMolTcpSocketClient::CMolTcpSocketClient()
 	opcode = 0;
 	mchecksum=0;
 
+	m_html5connected.SetVal(false);
+	m_htmlMsgProcessed.SetVal(false);
+	m_buffer_pos=0;	
+    masksOffset = 0;
+    payloadSize = 0;	
+    memset(&m_packetheard,0,sizeof(m_packetheard));
+
+	m_readTimer.SetVal(0);
+	m_readMsgCount.SetVal(0);
+	m_readMsgBool.SetVal(true);    
+
+	m_port=0;
+
 	m_ReadBuffer = new CircularBuffer();
 	m_ReadBuffer->Allocate(REV_SIZE);
 
 	m_mainlooprunning=true;
 	pThread = ThreadPool.StartThread(this);
+
+#ifdef _WIN32
+		gettimeofday(&reconnectHintTime);
+#else
+		gettimeofday(&reconnectHintTime, NULL);
+#endif			
 }
 
 /// 析构函数
@@ -85,6 +109,7 @@ void CMolTcpSocketClient::CloseConnect(bool isShow)
 	m_ReadBufferLock.Acquire();
 	bool bClose = (m_Socket != INVALID_SOCKET);
 	m_bConnectState = NOCONNECT;
+
 	if(m_Socket != INVALID_SOCKET)
 	{
 #ifdef _WIN32
@@ -315,10 +340,55 @@ int CMolTcpSocketClient::Sendhtml5(char *Bytes,uint32 Size)
 		out.writeBytes(len, 8);
 	}
 
-	out.writeBytes((uint8*)Bytes,Size);
+	uint8 masks[4];
+	masks[0]=0xFF;
+	masks[1]=0xFF;
+	masks[2]=0xFF;
+	masks[3]=0xFF;
+	out.writeBytes(masks, 4);	
+
+	char buffer[MOL_REV_BUFFER_SIZE_TWO];
+	memcpy(buffer,Bytes,payloadSize);
+
+    for (int64 i = 0; i < payloadSize; i++) {
+        buffer[i] = (buffer[i] ^ masks[i%4]);
+    }	
+
+	out.writeBytes((uint8*)buffer,payloadSize);
 
 	return Send(out.getData(),out.getLength());
 }
+
+/// 重新连接服务器
+bool CMolTcpSocketClient::Reconnect(void)
+{
+	if(IsConnected()) return false;
+
+	struct timeval now;
+
+#ifdef _WIN32
+	gettimeofday(&now);
+#else
+	gettimeofday(&now, NULL);
+#endif
+	long temp = now.tv_sec - reconnectHintTime.tv_sec;
+
+	if(temp > 5)
+	{
+#ifdef _WIN32
+		gettimeofday(&reconnectHintTime);
+#else
+		gettimeofday(&reconnectHintTime, NULL);
+#endif	
+
+		//LOG_BASIC("server:%s port:%d Reconnection will take place in 10 seconds.",m_ipaddress,m_port);
+
+		return Connect(m_ipaddress,m_port);
+	}
+
+	return false;
+}
+
 
 /// 连接指定的服务器
 bool CMolTcpSocketClient::Connect(std::string ipaddress,int port)
@@ -337,6 +407,9 @@ bool CMolTcpSocketClient::Connect(std::string ipaddress,int port)
 	mchecksum=0;
 	sendedhearthintcount=0;
 	ClearMesList();
+
+	strcpy(m_ipaddress,ipaddress.c_str());
+	m_port = port;
 
 #ifdef _WIN32
 	long dwServerIP = inet_addr(ipaddress.c_str());
@@ -382,9 +455,6 @@ bool CMolTcpSocketClient::Connect(std::string ipaddress,int port)
 	unsigned int option = 1;
 	setsockopt(m_Socket, SOL_SOCKET, SO_REUSEADDR, (const char*)&option, 4);
 
-	u_long arg = 1;
-	::ioctl(m_Socket, FIONBIO, &arg);
-
 	int time_out = 5000;
 	setsockopt(m_Socket,SOL_SOCKET,SO_RCVTIMEO,(char*)&time_out,sizeof(int));
 	setsockopt(m_Socket,SOL_SOCKET,SO_SNDTIMEO,(char*)&time_out,sizeof(int));
@@ -395,11 +465,15 @@ bool CMolTcpSocketClient::Connect(std::string ipaddress,int port)
 	memcpy(&SocketAddr.sin_addr.s_addr , lpHost->h_addr_list[0], lpHost->h_length);
 
     int sockfd = connect(m_Socket,(const sockaddr*)(&SocketAddr),sizeof(SocketAddr)) ;
-	//if(sockfd < 0)
-	//{
-	//	CloseConnect();
-	//	return false;
-	//}
+	if(sockfd < 0)
+	{
+		perror("connect fail.");
+		CloseConnect();
+		return false;
+	}
+
+	u_long arg = 1;
+	::ioctl(m_Socket, FIONBIO, &arg);	
 
 #endif
 
@@ -407,7 +481,17 @@ bool CMolTcpSocketClient::Connect(std::string ipaddress,int port)
 
 	m_bConnectState = CONNECTTING;
 
+	WebsocketHandshakeMessage response;
+
+	response.SetField("Upgrade", "websocket");
+	response.SetField("Connection", "Upgrade");
+	response.SetField("Sec-WebSocket-Accept", "hj0eNqbhE/A0GkBXDRrYYw==");
+
+	std::string responsestr = response.Serialize();
+	Send((char*)responsestr.c_str(),responsestr.length());	
+
 	//::OutputDebugString(TEXT("socket running:9.\n"));
+	LOG_BASIC("server:%s port:%d Connection successful.",m_ipaddress,m_port);
 
 	return true;
 }
@@ -503,16 +587,17 @@ void CMolTcpSocketClient::ProcessSelect(void)
 	else if(nfds == 0)
 	{
 		// 如果连着发5个心跳包都失败，那么连接已经断开了
-		if(sendedhearthintcount >= 5)
+		if(sendedhearthintcount >= 5) {			
 			CloseConnect(true);
+		}
 	}
 	else if(nfds > 0)
 	{
 		if(FD_ISSET(m_Socket, &m_readableSet))
 		{
 			m_ReadBufferLock.Acquire();
-			int iLen = ::recv(m_Socket,(char*)(m_ReadBuffer->GetBuffer()),(int)m_ReadBuffer->GetSpace(),0);
-			if(iLen == SOCKET_ERROR || iLen == 0)
+			int size = ::recv(m_Socket,(char*)(m_ReadBuffer->GetBuffer()),(int)m_ReadBuffer->GetSpace(),0);
+			if(size == SOCKET_ERROR || size == 0)
 			{
 				CloseConnect(true);
 				m_ReadBufferLock.Release();
@@ -521,10 +606,197 @@ void CMolTcpSocketClient::ProcessSelect(void)
 
 			try
 			{
-				if(iLen != 0xFFFFFFFF)
-					m_ReadBuffer->IncrementWritten(iLen);
+				if(size != 0xFFFFFFFF)
+					m_ReadBuffer->IncrementWritten(size);
+
+				if(m_html5connected.GetVal() == false)
+				{
+					if(m_ReadBuffer->GetSize() < 129) 
+					{
+						m_ReadBufferLock.Release();	
+						return;
+					}
+
+					m_ReadBuffer->Read((uint8*)m_buffer+m_buffer_pos,129);
+					m_buffer_pos += 129;
+
+					WebsocketHandshakeMessage request(m_buffer,m_buffer_pos);
+
+					if(request.Parse())
+					{		
+						m_buffer_pos=0;
+						payloadSize=0;
+						m_html5connected.SetVal(true);
+						m_bConnectState=CONNECTED;
+						memset(&m_packetheard,0,sizeof(m_packetheard));
+						PushMessage(MessageStru(MES_TYPE_ON_CONNECTED,m_Socket));
+					}					
+				}
 
 				while(true)
+				{
+				    if(m_htmlMsgProcessed.GetVal() == false)
+				    {
+				    	if(m_packetheard.payloadFlags == 0 && m_packetheard.basicSize == 0) {
+					    	if(m_ReadBuffer->GetSize() < 2) 
+					    	{
+					        	m_ReadBufferLock.Release();
+					            return;
+					    	}
+
+					        m_ReadBuffer->Read((uint8*)m_buffer+m_buffer_pos,2);
+					        m_buffer_pos += 2;
+
+					        m_packetheard.payloadFlags = m_buffer[0];
+					        if (m_packetheard.payloadFlags != 129)
+					        {
+					        	m_ReadBufferLock.Release();
+					            return;
+					        }               
+
+					        m_packetheard.basicSize = m_buffer[1] & 0x7F;
+					    }
+
+				        if (m_packetheard.basicSize <= 125)
+				        {
+				            payloadSize = m_packetheard.basicSize;
+				            masksOffset = 2;
+				        }
+				        else if (m_packetheard.basicSize == 126)
+				        {
+				            if (m_ReadBuffer->GetSize() < 2)
+				            {
+				            	m_ReadBufferLock.Release();
+				                return;
+				            }
+
+					        m_ReadBuffer->Read((uint8*)m_buffer+m_buffer_pos,2);
+					        m_buffer_pos += 2;
+
+				            payloadSize = ntohs( *(u_short*) (m_buffer + 2) );
+				            masksOffset = 4;
+				        }
+				        else if (m_packetheard.basicSize == 127)
+				        {
+				            if (m_ReadBuffer->GetSize()  < 8)
+				            {
+				            	m_ReadBufferLock.Release();
+				                return;
+				            }
+
+					        m_ReadBuffer->Read((uint8*)m_buffer+m_buffer_pos,8);
+					        m_buffer_pos += 8;
+
+				            payloadSize = ntohl( *(u_long*) (m_buffer + 2) );
+				            masksOffset = 10;
+				        }
+				        else
+				        {
+				        	m_ReadBufferLock.Release();
+				            return;
+				        }
+
+				        m_htmlMsgProcessed.SetVal(true);
+				    }
+
+		            if (m_ReadBuffer->GetSize()  < payloadSize)
+		            {
+		            	m_ReadBufferLock.Release();
+		                return;
+		            }
+
+			        m_ReadBuffer->Read((uint8*)m_buffer+m_buffer_pos,payloadSize);
+			        m_buffer_pos += payloadSize;
+
+				    //uint8 masks[4];
+				    //memcpy(masks, m_buffer + masksOffset, 4);
+
+				    char* payload = (char*)allocBytes((payloadSize + 1) * sizeof(char));
+				    memcpy(payload, m_buffer + masksOffset, payloadSize);
+				    //for (int64 i = 0; i < payloadSize; i++) {
+				    //    payload[i] = (payload[i] ^ masks[i%4]);
+				    //}
+					payload[payloadSize] = '\0';	            
+
+					if(m_buffer_pos > 0 && m_buffer_pos < MOL_REV_BUFFER_SIZE_TWO)
+					{
+						if(m_readTimer.GetVal() == 0)
+						{
+							m_readTimer.SetVal((ulong)time(NULL));
+						}
+
+						ulong tmpTime = (ulong)time(NULL) - m_readTimer.GetVal();
+
+						if(tmpTime > 1)
+						{
+							if(m_readMsgCount.GetVal() > IDD_SECOND_MSG_MAX_COUNT)
+							{
+								m_readMsgBool.SetVal(false);
+							}
+							else
+							{
+								m_readTimer.SetVal(0);
+								m_readMsgCount.SetVal(0);
+							}
+						}
+
+						if(tmpTime > 60)
+						{
+							m_readTimer.SetVal(0);
+							m_readMsgCount.SetVal(0);
+							m_readMsgBool.SetVal(true);
+						}
+
+						if(m_readMsgBool.GetVal())
+						{
+							CMolMessageIn *in = NULL;
+
+							try
+							{
+								in = new CMolMessageIn(payload,payloadSize + 1);
+							}
+							catch (std::exception e)
+							{
+								char str[256];
+								sprintf(str,"%s:\n",e.what());
+								LOG_DEBUG(str);
+								//perr->Delete();
+
+								if(in)
+								{
+									delete in;
+									in = NULL;
+								}
+							}
+
+							if(in)
+							{
+								if(atoi(in->getData()) == IDD_MESSAGE_HEART_BEAT)
+								{
+									delete in;
+									in = NULL;
+								}
+								else
+								{
+									PushMessage(MessageStru(MES_TYPE_ON_READ,m_Socket,in));
+									//ServerGameFrameManager.OnProcessNetMes(this,in);
+								}
+
+								++m_readMsgCount;
+							}
+						}
+					}
+
+				    masksOffset = 0;
+				    payloadSize = 0;
+				    m_buffer_pos = 0;
+					m_htmlMsgProcessed.SetVal(false);
+					memset(&m_packetheard,0,sizeof(m_packetheard));
+					deallocBytes(payload);
+					payload = NULL;		
+				}	
+
+				/*while(true)
 				{
 					if(!remaining)
 					{
@@ -534,7 +806,6 @@ void CMolTcpSocketClient::ProcessSelect(void)
 							return;
 						}
 
-						// 首先取得版本号
 						m_ReadBuffer->Read((unsigned char*)&opcode,sizeof(unsigned short));
 
 						if(opcode != MOL_NETWORK_VERSION)
@@ -544,23 +815,19 @@ void CMolTcpSocketClient::ProcessSelect(void)
 							return;
 						}
 
-						// 首先取得包头
 						m_ReadBuffer->Read((unsigned char*)&remaining,sizeof(unsigned int));
 
-						// 取得数据压缩标志
 						m_ReadBuffer->Read((unsigned char*)&compress,sizeof(unsigned short));
 
-						// 取得数据效验标志
 						m_ReadBuffer->Read((uint8*)&mchecksum,sizeof(uint32));
 					}
 
-					if(m_ReadBuffer->GetSize() < remaining/* || m_ReadBuffer->GetSize() >= MOL_REV_BUFFER_SIZE*/)
+					if(m_ReadBuffer->GetSize() < remaining/* || m_ReadBuffer->GetSize() >= MOL_REV_BUFFER_SIZE)
 					{
 						//size_t length = m_ReadBuffer->GetSize();
 
 						//CloseConnect();
 
-						//// 处理与客户端建立连接
 						//if(m_BaseFrame)
 						//{
 						//	m_BaseFrame->OnProcessNetMessage(m_bConnectState,in);
@@ -573,19 +840,16 @@ void CMolTcpSocketClient::ProcessSelect(void)
 					char buffer[MOL_REV_BUFFER_SIZE_TWO];
 					memset(buffer,0,MOL_REV_BUFFER_SIZE_TWO);
 
-					// 取得实际数据包
 					m_ReadBuffer->Read((unsigned char*)buffer,remaining);
 
 					int len = remaining;
 					//Decrypto((unsigned char*)buffer,dlength);
 
-					////解压缩
 					//if(compress > 0)
 					//	len = mole2d::network::UncompressData((uint8*)buffer,(uint8*)buffer, len );
 
 					len = Rc4Decrypt(RC4_KEY,(uint8*)buffer,(uint8*)buffer, len );
 
-					//校研数据
 					if(mchecksum != checksum((uint16*)buffer, len))
 					{
 						CloseConnect(true);
@@ -593,7 +857,6 @@ void CMolTcpSocketClient::ProcessSelect(void)
 						return;
 					}
 
-					// 让主窗体来处理这个网络消息
 					if(len > 0 && len < MOL_REV_BUFFER_SIZE_TWO)
 						PushMessage(MessageStru(MES_TYPE_ON_READ,m_Socket,new CMolMessageIn(buffer,len)));
 
@@ -601,7 +864,7 @@ void CMolTcpSocketClient::ProcessSelect(void)
 					compress = 0;
 					opcode = 0;
 					mchecksum = 0;
-				}
+				}*/
 			}
 			catch (...)
 			{
@@ -615,8 +878,9 @@ void CMolTcpSocketClient::ProcessSelect(void)
 
 		}
 
-		if(FD_ISSET(m_Socket, &m_exceptionSet))
+		if(FD_ISSET(m_Socket, &m_exceptionSet)) {			
 			CloseConnect(true);
+		}
 	}
 }
 
@@ -658,7 +922,7 @@ void CMolTcpSocketClient::GameMainLoop(void)
 		gettimeofday(&now, NULL);
 #endif
 		long temp = now.tv_sec - lostHeartHintTime.tv_sec;
-		if(temp > 5)
+		if(temp > 1)
 		{
 #ifdef _WIN32
 		gettimeofday(&lostHeartHintTime);
@@ -666,8 +930,9 @@ void CMolTcpSocketClient::GameMainLoop(void)
 		gettimeofday(&lostHeartHintTime, NULL);
 #endif
 
-			CMolMessageOut out(100);
-			if(Send(out) == SOCKET_ERROR)
+			//CMolMessageOut out(100);
+			char heartout[] = "100";
+			if(Sendhtml5(heartout,strlen(heartout)) == SOCKET_ERROR)
 				sendedhearthintcount+=1;
 			else
 				sendedhearthintcount=0;
@@ -765,13 +1030,40 @@ void CTcpSocketClientManager::deleteAllTcpSocketClient(void)
 	m_TcpSocketClients.clear();
 }
 
-bool CTcpSocketClientManager::addTcpSocketClient(CMolTcpSocketClient *pClient)
+void CTcpSocketClientManager::Sendhtml5(int serverindex,char *Bytes,uint32 len)
 {
-	if(pClient == NULL) return false;
+	if(m_TcpSocketClients.empty())
+		return;
+
+	if(serverindex == -1) {
+		for(int i=0;i<(int)m_TcpSocketClients.size();i++)
+		{
+			if(m_TcpSocketClients[i]) m_TcpSocketClients[i]->Sendhtml5(Bytes,len);
+		}		
+	}
+	else {
+		if(m_TcpSocketClients[serverindex]) m_TcpSocketClients[serverindex]->Sendhtml5(Bytes,len);
+	}	
+}
+
+void CTcpSocketClientManager::Update(void)
+{
+	if(m_TcpSocketClients.empty())
+		return;
+
+	for(int i=0;i<(int)m_TcpSocketClients.size();i++)
+	{
+		if(m_TcpSocketClients[i]) m_TcpSocketClients[i]->Reconnect();
+	}	
+}
+
+int CTcpSocketClientManager::addTcpSocketClient(CMolTcpSocketClient *pClient)
+{
+	if(pClient == NULL) return -1;
 
 	m_TcpSocketClients.push_back(pClient);
 
-	return true;
+	return (int)m_TcpSocketClients.size()-1;
 }
 
 bool CTcpSocketClientManager::delTcpSocketClient(CMolTcpSocketClient *pClient)

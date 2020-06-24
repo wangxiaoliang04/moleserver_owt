@@ -112,4 +112,12 @@ typedef uint16_t WORD;
      #define _atoi64(val)     strtoll(val, NULL, 10)
 #endif
 
+#pragma pack(push, 1)
+typedef struct
+{
+	uint8 payloadFlags;
+	uint8 basicSize;
+}packetheard;
+#pragma pack(pop)
+
 #endif // COMMON_H_INCLUDED

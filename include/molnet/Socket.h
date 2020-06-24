@@ -9,6 +9,7 @@
 #ifndef SOCKET_H
 #define SOCKET_H
 
+#include "common.h"
 #include "SocketDefines.h"
 #include "SocketOps.h"
 
@@ -97,6 +98,7 @@ class Socket : public NedAllocatedObject
 			m_html5connected.SetVal(false);
             m_writeLock.SetVal(false);
             m_htmlMsgProcessed.SetVal(false);
+            memset(&m_packetheard,0,sizeof(m_packetheard));
             m_eventCount.SetVal(0);
 
            	m_readTimer.SetVal(0);
@@ -107,7 +109,6 @@ class Socket : public NedAllocatedObject
 
             m_htmlMsgProcessed.SetVal(false);
             m_buffer_pos = 0;
-            nMinExpectedSize = 6;
             masksOffset = 0;
             payloadSize = 0;
 
@@ -169,8 +170,8 @@ class Socket : public NedAllocatedObject
 
 	    char m_buffer[MOL_REV_BUFFER_SIZE_TWO];                /**< ÓÃÓÚ´æ´¢ÊÕµ½µÄÊý¾Ý */
 	    unsigned long m_buffer_pos;
+	    packetheard m_packetheard;
 	    AtomicBoolean m_htmlMsgProcessed;
-        int nMinExpectedSize;
         int masksOffset;
         int64 payloadSize;
 

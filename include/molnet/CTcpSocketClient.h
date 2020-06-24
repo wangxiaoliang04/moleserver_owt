@@ -3,6 +3,7 @@
 
 #include "common.h"
 #include "Singleton.h"
+#include "AtomicBoolean.h"
 #include "Mutex.h"
 #include "ThreadStarter.h"
 #include "MolNetMessage.h"
@@ -38,6 +39,8 @@ public:
 	void CloseConnect(bool isShow=false);
 	/// 连接指定的服务器
 	bool Connect(std::string ipaddress,int port);
+	/// 重新连接服务器
+	bool Reconnect(void);
 		/// 返回当前连接状态
 	inline ConnectState GetConnectState(void) { return m_bConnectState; }
 	/// 发送数据
@@ -47,7 +50,7 @@ public:
 	/// 检测当前是否还在连接中
 	inline bool IsConnected(void)
 	{
-		return m_bConnectState != NOCONNECT ? true : false;
+		return m_bConnectState > NOCONNECT ? true : false;
 	}
 
 	int GetNetMessage(NetMessage & mes);
@@ -78,7 +81,8 @@ private:
 
 private:
 	void ProcessSelect(void);
-	void GameMainLoop(void);
+	void GameMainLoop(void);	
+	
 
 private:
 	int m_Socket;                 /**< 当前控件的socket句柄 */
@@ -91,6 +95,7 @@ private:
 	fd_set m_readableSet,m_writeableSet;
 	fd_set m_exceptionSet;
 	struct timeval lostHeartHintTime;
+	struct timeval reconnectHintTime;
 	volatile int sendedhearthintcount;
 
 	volatile bool m_mainlooprunning;
@@ -98,6 +103,21 @@ private:
 	unsigned short opcode;
 	uint16 compress;
 	uint32 mchecksum;
+	char m_ipaddress[32];
+	int m_port;
+
+    // html5端是否真正连接成功
+    AtomicBoolean m_html5connected;	
+    char m_buffer[MOL_REV_BUFFER_SIZE_TWO];               
+    unsigned long m_buffer_pos;
+    packetheard m_packetheard;
+    AtomicBoolean m_htmlMsgProcessed;  
+    int masksOffset;
+    int64 payloadSize;  
+
+    AtomicULong             m_readTimer;
+    AtomicCounter           m_readMsgCount;
+    AtomicBoolean           m_readMsgBool;        
 };
 
 class CTcpSocketClientManager : public Singleton<CTcpSocketClientManager>
@@ -106,30 +126,17 @@ public:
 	CTcpSocketClientManager();
 	~CTcpSocketClientManager();
 
-	bool addTcpSocketClient(CMolTcpSocketClient *pClient);
+	int addTcpSocketClient(CMolTcpSocketClient *pClient);
 	bool delTcpSocketClient(CMolTcpSocketClient *pClient);
 	void ExitWorkingThread(void);
+	void Update(void);
+	void Sendhtml5(int serverindex,char *Bytes,uint32 len);
 	void deleteAllTcpSocketClient(void);
 
 private:
 	std::vector<CMolTcpSocketClient*> m_TcpSocketClients;
 };
 
-class CMolGameTcpSocketClient : public CMolTcpSocketClient,public Singleton<CMolGameTcpSocketClient>
-{
-public:
-	CMolGameTcpSocketClient() {}
-	virtual ~CMolGameTcpSocketClient() {}
-};
-
-class CMolChatTcpSocketClient : public CMolTcpSocketClient,public Singleton<CMolChatTcpSocketClient>
-{
-public:
-	CMolChatTcpSocketClient() {}
-	virtual ~CMolChatTcpSocketClient() {}
-};
-
-#define MolTcpSocketClient CMolGameTcpSocketClient::getSingleton()
-#define MolChatTcpSocketClient CMolChatTcpSocketClient::getSingleton()
+#define MolTcpSocketClientManager CTcpSocketClientManager::getSingleton()
 
 #endif

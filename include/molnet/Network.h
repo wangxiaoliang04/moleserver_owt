@@ -11,6 +11,7 @@
 #include "SocketOps.h"
 #include "SocketMgrLinux.h"
 #include "ListenSocketLinux.h"
+#include "CTcpSocketClient.h"
 #include "dalexcept.h"
 #include "dataprovider.h"
 #include "dataproviderfactory.h"
@@ -20,6 +21,9 @@
 #include "MolString.h"
 #include "MolMessageIn.h"
 #include "MolMessageOut.h"
+
+#include "httplib.h"
+#include "json.h"
 
 namespace network
 {
