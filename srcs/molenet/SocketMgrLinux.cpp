@@ -106,6 +106,8 @@ void SocketMgr::Update(void)
 					listenfds[s->GetFd()]=NULL;
                     --socket_count;
 
+                    RemoveSocketFromEpollList(s);
+                    
                     SocketOps::CloseSocket(s->GetFd());
 
                     // add free socket list
@@ -166,9 +168,11 @@ void SocketMgr::AddListenSocket(ListenSocketBase* s)
 		Log.Error("epoll", "Could not add event to epoll set on fd %u", ev.data.fd);
 }
 
-void SocketMgr::RemoveSocket(Socket* s)
+void SocketMgr::RemoveSocketFromEpollList(Socket* s)
 {
-    _socketLock.Acquire();
+	if(s == NULL) return;
+
+    /*_socketLock.Acquire();
 	if(fds[s->GetFd()] != s)
 	{
 		Log.Error("epoll", "Could not remove fd %u from the set due to it not existing?", s->GetFd());
@@ -191,7 +195,16 @@ void SocketMgr::RemoveSocket(Socket* s)
 
 	if(epoll_ctl(epoll_fd, EPOLL_CTL_DEL, ev.data.fd, &ev))
 		Log.Error("epoll", "Could not remove fd %u from epoll set, errno %u", s->GetFd(), errno);
-    _socketLock.Release();
+    _socketLock.Release();*/
+
+	// Remove from epoll list.
+	struct epoll_event ev;
+	memset(&ev, 0, sizeof(epoll_event));
+	ev.data.fd = s->GetFd();
+	ev.events = EPOLLIN | EPOLLOUT | EPOLLERR | EPOLLHUP | EPOLLONESHOT;
+
+	if(epoll_ctl(epoll_fd, EPOLL_CTL_DEL, ev.data.fd, &ev))
+		Log.Error("epoll", "Could not remove fd %u from epoll set, errno %u", s->GetFd(), errno);    
 }
 
 void SocketMgr::CloseAll()
@@ -325,7 +338,7 @@ bool SocketWorkerThread::run()
 				if((ptr = ((Socket*)mgr->listenfds[events[i].data.fd])) != NULL)
 					((ListenSocketBase*)ptr)->OnAccept();
 				else
-					Log.Error("epoll", "Returned invalid fd (no pointer) of FD %u", events[i].data.fd);
+					Log.Error("epoll", "Returned invalid fd (no pointer) of FD %u %u", events[i].data.fd,events[i].events);
 
                 continue;
 			}

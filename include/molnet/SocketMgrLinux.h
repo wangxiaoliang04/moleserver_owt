@@ -85,8 +85,8 @@ class SocketMgr : public Singleton<SocketMgr>
 		inline void LockSocketList(void) { _socketLock.Acquire(); }
 		inline void UnlockSocketList(void) { _socketLock.Release(); }
 
-		/// remove a socket from epoll set/fd mapping
-		void RemoveSocket(Socket* s);
+		/// remove a socket from epoll list
+		void RemoveSocketFromEpollList(Socket* s);
 		/// add a free socket
 		void AddFreeSocket(Socket *s);
 		/// get a free socket

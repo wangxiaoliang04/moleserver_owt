@@ -467,7 +467,7 @@ bool CMolTcpSocketClient::Connect(std::string ipaddress,int port)
     int sockfd = connect(m_Socket,(const sockaddr*)(&SocketAddr),sizeof(SocketAddr)) ;
 	if(sockfd < 0)
 	{
-		perror("connect fail.");
+		//perror("connect fail.");
 		CloseConnect();
 		return false;
 	}
