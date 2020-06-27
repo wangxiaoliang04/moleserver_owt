@@ -53,7 +53,7 @@ public:
 		return m_bConnectState > NOCONNECT ? true : false;
 	}
 
-	int GetNetMessage(NetMessage & mes);
+	int GetNetMessage(NetMessage & mes,bool isclearmeslist=true);
 	void ExitWorkingThread(void);
 
 private:
@@ -132,6 +132,7 @@ public:
 	void Update(void);
 	void Sendhtml5(int serverindex,char *Bytes,uint32 len);
 	void deleteAllTcpSocketClient(void);
+	void GetNetMessage(NetMessage & mes,bool isclearmeslist=true);	
 
 private:
 	std::vector<CMolTcpSocketClient*> m_TcpSocketClients;

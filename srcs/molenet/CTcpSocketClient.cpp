@@ -39,7 +39,7 @@ static Thread* pThread = NULL;
 
 /// ¹¹Ôìº¯Êý
 CMolTcpSocketClient::CMolTcpSocketClient()
-	:m_Socket(NULL),m_bConnectState(NOCONNECT),m_ReadBuffer(NULL),
+	:m_Socket(0),m_bConnectState(NOCONNECT),m_ReadBuffer(NULL),
 	remaining(0),opcode(0),compress(0),mchecksum(0),sendedhearthintcount(0)
 {
 	FD_ZERO(&m_readableSet);
@@ -131,7 +131,7 @@ void CMolTcpSocketClient::CloseConnect(bool isShow)
 	if(m_ReadBuffer && m_ReadBuffer->GetSize() > 0)
 		m_ReadBuffer->Remove(m_ReadBuffer->GetSize());
 
-	if(isShow) PushMessage(MessageStru(MES_TYPE_ON_DISCONNECTED,m_Socket));
+	if(isShow) PushMessage(MessageStru(MES_CLIENT_TYPE_ON_DISCONNECTED,m_Socket));
 	m_ReadBufferLock.Release();
 	//::OutputDebugString(TEXT("Is running??\n"));
 }
@@ -288,7 +288,7 @@ int CMolTcpSocketClient::Send(char *msg,uint32 len)
 
 int CMolTcpSocketClient::Sendhtml5(char *Bytes,uint32 Size)
 {
-	if(Bytes == NULL || Size <= 0)
+	if(Bytes == NULL || Size <= 0 || !IsConnected())
 		return false;
 
 	CMolMessageOut out;
@@ -496,9 +496,11 @@ bool CMolTcpSocketClient::Connect(std::string ipaddress,int port)
 	return true;
 }
 
-int CMolTcpSocketClient::GetNetMessage(NetMessage & mes)
+int CMolTcpSocketClient::GetNetMessage(NetMessage & mes,bool isclearmeslist)
 {
-	mes.Clear();
+	if(!IsConnected()) return 0;
+	
+	if(isclearmeslist) mes.Clear();
 
 	if(GetMesCount() <= 0 ||
 		mes.GetMaxCount() <= 0)
@@ -629,7 +631,7 @@ void CMolTcpSocketClient::ProcessSelect(void)
 						m_html5connected.SetVal(true);
 						m_bConnectState=CONNECTED;
 						memset(&m_packetheard,0,sizeof(m_packetheard));
-						PushMessage(MessageStru(MES_TYPE_ON_CONNECTED,m_Socket));
+						PushMessage(MessageStru(MES_CLIENT_TYPE_ON_CONNECTED,m_Socket));
 					}					
 				}
 
@@ -764,7 +766,7 @@ void CMolTcpSocketClient::ProcessSelect(void)
 
 								if(in)
 								{
-									delete in;
+									SafeDelete(in);
 									in = NULL;
 								}
 							}
@@ -773,12 +775,12 @@ void CMolTcpSocketClient::ProcessSelect(void)
 							{
 								if(atoi(in->getData()) == IDD_MESSAGE_HEART_BEAT)
 								{
-									delete in;
+									SafeDelete(in);
 									in = NULL;
 								}
 								else
 								{
-									PushMessage(MessageStru(MES_TYPE_ON_READ,m_Socket,in));
+									PushMessage(MessageStru(MES_CLIENT_TYPE_ON_READ,m_Socket,in));
 									//ServerGameFrameManager.OnProcessNetMes(this,in);
 								}
 
@@ -1028,6 +1030,19 @@ void CTcpSocketClientManager::deleteAllTcpSocketClient(void)
 	}
 
 	m_TcpSocketClients.clear();
+}
+
+void CTcpSocketClientManager::GetNetMessage(NetMessage & mes,bool isclearmeslist)
+{
+	if(m_TcpSocketClients.empty())
+		return;
+
+	if(isclearmeslist) mes.Clear();
+
+	for(int i=0;i<(int)m_TcpSocketClients.size();i++)
+	{
+		if(m_TcpSocketClients[i]) m_TcpSocketClients[i]->GetNetMessage(mes,false);
+	}	
 }
 
 void CTcpSocketClientManager::Sendhtml5(int serverindex,char *Bytes,uint32 len)

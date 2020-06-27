@@ -21,6 +21,7 @@
 #include "MolString.h"
 #include "MolMessageIn.h"
 #include "MolMessageOut.h"
+#include "MolNetMessage.h"
 
 #include "httplib.h"
 #include "json.h"

@@ -19,6 +19,9 @@ enum MessageType
 	MES_TYPE_ON_CONNECTED = 0,        // 连接建立成功后
 	MES_TYPE_ON_DISCONNECTED,         // 连接断开后
 	MES_TYPE_ON_READ,                 // 数据到达后
+	MES_CLIENT_TYPE_ON_CONNECTED,        // 客户端连接建立成功后
+	MES_CLIENT_TYPE_ON_DISCONNECTED,         // 客户端连接断开后
+	MES_CLIENT_TYPE_ON_READ,                 // 客户端数据到达后	
 	MES_TYPE_NULL
 };
 
