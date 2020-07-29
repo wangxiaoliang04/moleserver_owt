@@ -131,7 +131,7 @@ void CMolTcpSocketClient::CloseConnect(bool isShow)
 	if(m_ReadBuffer && m_ReadBuffer->GetSize() > 0)
 		m_ReadBuffer->Remove(m_ReadBuffer->GetSize());
 
-	if(isShow) PushMessage(MessageStru(MES_TYPE_ON_DISCONNECTED,m_Socket));
+	if(isShow) PushMessage(MessageStru(MES_CLIENT_TYPE_ON_DISCONNECTED,m_Socket));
 	m_ReadBufferLock.Release();
 	//::OutputDebugString(TEXT("Is running??\n"));
 }
@@ -631,7 +631,7 @@ void CMolTcpSocketClient::ProcessSelect(void)
 						m_html5connected.SetVal(true);
 						m_bConnectState=CONNECTED;
 						memset(&m_packetheard,0,sizeof(m_packetheard));
-						PushMessage(MessageStru(MES_TYPE_ON_CONNECTED,m_Socket));
+						PushMessage(MessageStru(MES_CLIENT_TYPE_ON_CONNECTED,m_Socket));
 					}					
 				}
 
@@ -780,7 +780,7 @@ void CMolTcpSocketClient::ProcessSelect(void)
 								}
 								else
 								{
-									PushMessage(MessageStru(MES_TYPE_ON_READ,m_Socket,in));
+									PushMessage(MessageStru(MES_CLIENT_TYPE_ON_READ,m_Socket,in));
 									//ServerGameFrameManager.OnProcessNetMes(this,in);
 								}
 

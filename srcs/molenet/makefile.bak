@@ -52,7 +52,6 @@ CPPOBJS2 = $(OBJDIR)/AtomicBoolean.o \
 		   $(OBJDIR)/mysqldataprovider.o \
 		   $(OBJDIR)/network.o \
 		   $(OBJDIR)/rc4.o \
-		   $(OBJDIR)/md5.o \
 		   $(OBJDIR)/recordset.o \
 		   $(OBJDIR)/Socket.o \
 		   $(OBJDIR)/SocketLinux.o \
