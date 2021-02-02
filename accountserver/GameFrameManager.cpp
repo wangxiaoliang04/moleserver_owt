@@ -36,9 +36,18 @@ void GameFrameManager::OnProcessNetMes(uint32 connId,CMolMessageIn *mes)
     Json::Reader reader;
     Json::Value json_object;
 
+    LOG_ERROR("mes->getData():%s",mes->getData());
     if (!reader.parse(mes->getData(), json_object))
     {
         LOG_ERROR("数据解析失败:%s",mes->getData());
+
+	//wxl modify temp
+	//Json::Value root;
+	//root["MsgId"] = IDD_MESSAGE_USER_REGISTER;
+	//root["MsgSubId"] = IDD_MESSAGE_USER_REGISTER_FAIL;
+
+	//Sendhtml5(connId,(const char*)root.toStyledString().c_str(),root.toStyledString().length());
+
         return;
     }
 

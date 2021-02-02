@@ -498,7 +498,11 @@ bool CMolTcpSocketClient::Connect(std::string ipaddress,int port)
 
 int CMolTcpSocketClient::GetNetMessage(NetMessage & mes,bool isclearmeslist)
 {
-	if(!IsConnected()) return 0;
+	if(!IsConnected()) 
+	{
+		LOG_ERROR("IsConnected(): false");
+		return 0;
+	}
 	
 	if(isclearmeslist) mes.Clear();
 
@@ -512,6 +516,7 @@ int CMolTcpSocketClient::GetNetMessage(NetMessage & mes,bool isclearmeslist)
 
 	// 如果当前系统中的消息个数小于我们要读取的个数时，读取全部的消息；
 	// 否则读取我们设置的消息个数的消息
+	LOG_ERROR("mes.GetMaxCount():%d",mes.GetMaxCount());
 	if(GetMesCount() < mes.GetMaxCount())
 	{
 		if(_mesLock.AttemptAcquire())

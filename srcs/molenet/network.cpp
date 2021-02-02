@@ -149,12 +149,16 @@ int GetNetMessage(NetMessage & mes)
 
 	if(sSocketMgr.GetMesCount() <= 0 ||
 		mes.GetMaxCount() <= 0)
+	{
+		//LOG_ERROR("sSocketMgr.GetMesCount():%d", sSocketMgr.GetMesCount());
 		return 0;
+	}
 
 	int count = 0;
 
 	// 如果当前系统中的消息个数小于我们要读取的个数时，读取全部的消息；
 	// 否则读取我们设置的消息个数的消息
+	LOG_ERROR("mes.GetMaxCount():%d",mes.GetMaxCount());
 	if(sSocketMgr.GetMesCount() < mes.GetMaxCount())
 	{
 		if(sSocketMgr.LockMesList())

@@ -1,0 +1,52 @@
+[00:10][2021-01-31 00:10:45] opening '/home/wxl/moleserver/bin/logs/account1_server_normal.log'
+[00:10] [BSC] account_server.cpp:63 main 数据库:127.0.0.1 root 123456 moleweb 连接成功。
+[00:10] [BSC] account_server.cpp:83 main 登陆服务器:127.0.0.1,端口:3333 启动成功。
+[00:10] [BSC] account_server.cpp:85 main 服务器启动成功，开始处理...
+[01:00][2021-01-31 01:00:46] opening '/home/wxl/moleserver/bin/logs/account1_server_normal.log'
+[01:00] [BSC] account_server.cpp:63 main 数据库:127.0.0.1 root 123456 moleweb 连接成功。
+[01:00] [BSC] account_server.cpp:83 main 登陆服务器:127.0.0.1,端口:3333 启动成功。
+[01:00] [BSC] account_server.cpp:85 main 服务器启动成功，开始处理...
+[01:44][2021-01-31 01:44:43] opening '/home/wxl/moleserver/bin/logs/account1_server_normal.log'
+[01:44] [BSC] account_server.cpp:63 main 数据库:127.0.0.1 root 123456 moleweb 连接成功。
+[01:44] [BSC] account_server.cpp:83 main 登陆服务器:127.0.0.1,端口:3333 启动成功。
+[01:44] [BSC] account_server.cpp:85 main 服务器启动成功，开始处理...
+[01:45][2021-01-31 01:45:28] opening '/home/wxl/moleserver/bin/logs/account1_server_normal.log'
+[01:45] [BSC] account_server.cpp:63 main 数据库:127.0.0.1 root 123456 moleweb 连接成功。
+[01:45] [BSC] account_server.cpp:83 main 登陆服务器:127.0.0.1,端口:3333 启动成功。
+[01:45] [BSC] account_server.cpp:85 main 服务器启动成功，开始处理...
+[01:49][2021-01-31 01:49:31] opening '/home/wxl/moleserver/bin/logs/account1_server_normal.log'
+[01:49] [BSC] account_server.cpp:63 main 数据库:127.0.0.1 root 123456 moleweb 连接成功。
+[01:49] [BSC] account_server.cpp:83 main 登陆服务器:127.0.0.1,端口:3333 启动成功。
+[01:49] [BSC] account_server.cpp:85 main 服务器启动成功，开始处理...
+[02:15][2021-01-31 02:15:37] opening '/home/wxl/moleserver/bin/logs/account1_server_normal.log'
+[02:15] [BSC] account_server.cpp:63 main 数据库:127.0.0.1 root 123456 moleweb 连接成功。
+[02:15] [BSC] account_server.cpp:83 main 登陆服务器:127.0.0.1,端口:3333 启动成功。
+[02:15] [BSC] account_server.cpp:85 main 服务器启动成功，开始处理...
+[05:35][2021-01-31 05:35:17] opening '/home/wxl/moleserver/bin/logs/account1_server_normal.log'
+[05:35] [BSC] account_server.cpp:63 main 数据库:127.0.0.1 root 123456 moleweb 连接成功。
+[05:35] [BSC] account_server.cpp:83 main 登陆服务器:127.0.0.1,端口:3333 启动成功。
+[05:35] [BSC] account_server.cpp:85 main 服务器启动成功，开始处理...
+[06:22][2021-01-31 06:22:42] opening '/home/wxl/moleserver/bin/logs/account1_server_normal.log'
+[06:22] [BSC] account_server.cpp:63 main 数据库:127.0.0.1 root 123456 moleweb 连接成功。
+[06:22] [BSC] account_server.cpp:83 main 登陆服务器:127.0.0.1,端口:3333 启动成功。
+[06:22] [BSC] account_server.cpp:85 main 服务器启动成功，开始处理...
+[07:24][2021-01-31 07:24:55] opening '/home/wxl/moleserver/bin/logs/account1_server_normal.log'
+[07:24] [BSC] account_server.cpp:63 main 数据库:127.0.0.1 root 123456 moleweb 连接成功。
+[07:24] [BSC] account_server.cpp:83 main 登陆服务器:127.0.0.1,端口:3333 启动成功。
+[07:24] [BSC] account_server.cpp:85 main 服务器启动成功，开始处理...
+[08:08][2021-01-31 08:08:52] opening '/home/wxl/moleserver/bin/logs/account1_server_normal.log'
+[08:08] [BSC] account_server.cpp:63 main 数据库:127.0.0.1 root 123456 moleweb 连接成功。
+[08:08] [BSC] account_server.cpp:83 main 登陆服务器:127.0.0.1,端口:3333 启动成功。
+[08:08] [BSC] account_server.cpp:85 main 服务器启动成功，开始处理...
+[06:09][2021-02-01 06:09:07] opening '/home/wxl/moleserver_new/bin/logs/account1_server_normal.log'
+[06:09] [BSC] account_server.cpp:63 main 数据库:127.0.0.1 root 123456 moleweb 连接成功。
+[06:09] [BSC] account_server.cpp:83 main 登陆服务器:127.0.0.1,端口:3333 启动成功。
+[06:09] [BSC] account_server.cpp:85 main 服务器启动成功，开始处理...
+[06:41][2021-02-01 06:41:36] opening '/home/wxl/moleserver_new/bin/logs/account1_server_normal.log'
+[06:41] [BSC] account_server.cpp:63 main 数据库:127.0.0.1 root 123456 moleweb 连接成功。
+[06:41] [BSC] account_server.cpp:83 main 登陆服务器:127.0.0.1,端口:3333 启动成功。
+[06:41] [BSC] account_server.cpp:85 main 服务器启动成功，开始处理...
+[07:12][2021-02-01 07:12:09] opening '/home/wxl/moleserver_new/bin/logs/account1_server_normal.log'
+[07:12] [BSC] account_server.cpp:63 main 数据库:127.0.0.1 root 123456 moleweb 连接成功。
+[07:12] [BSC] account_server.cpp:83 main 登陆服务器:127.0.0.1,端口:3333 启动成功。
+[07:12] [BSC] account_server.cpp:85 main 服务器启动成功，开始处理...

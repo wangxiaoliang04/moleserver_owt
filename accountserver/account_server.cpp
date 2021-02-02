@@ -86,13 +86,15 @@ int main(int argc,char *argv[])
 
 	while(IsConnected())
 	{
+		//LOG_ERROR("IsConnected true");
 		GetNetMessage(myMes);
-
+		//LOG_ERROR("myMes.GetCount():%d",myMes.GetCount());
 		for(int i=0;i<myMes.GetCount();i++)
 		{
 			MessageStru *mes = myMes.GetMesById(i);
+			LOG_ERROR("GetType11:%d",mes->GetType());
 			if(mes==NULL) continue;
-
+			LOG_ERROR("GetType22:%d",mes->GetType());
 			switch(mes->GetType())
 			{
 			case MES_TYPE_ON_CONNECTED:
@@ -114,11 +116,13 @@ int main(int argc,char *argv[])
 				break;
 			}
 		}
-
+	//LOG_ERROR("begin ServerDBOperator.Update");
         ServerDBOperator.Update();
 
 		usleep(1000);
 	}
+
+	LOG_ERROR("server end!");
 
     ServerDBOperator.Shutdown();
     CleanMolNet();

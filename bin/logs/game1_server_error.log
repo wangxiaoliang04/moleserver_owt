@@ -1,0 +1,35 @@
+[07:14][2021-01-28 07:14:02] opening '/home/wxl/moleserver/bin/logs/game1_server_error.log'
+[07:14] [ERR] ../../include/molnet/dalexcept.h:86 DbConnectionFailure Access denied for user 'root'@'localhost'
+[05:48][2021-01-29 05:48:03] opening '/home/wxl/moleserver/bin/logs/game1_server_error.log'
+[05:48] [ERR] ../../include/molnet/dalexcept.h:86 DbConnectionFailure Access denied for user 'root'@'localhost'
+[05:48][2021-01-29 05:48:49] opening '/home/wxl/moleserver/bin/logs/game1_server_error.log'
+[05:48] [ERR] ../../include/molnet/dalexcept.h:86 DbConnectionFailure Access denied for user 'root'@'localhost'
+[06:01][2021-01-29 06:01:41] opening '/home/wxl/moleserver/bin/logs/game1_server_error.log'
+[06:02][2021-01-29 06:02:00] opening '/home/wxl/moleserver/bin/logs/game1_server_error.log'
+[01:32][2021-01-30 01:32:23] opening '/home/wxl/moleserver/bin/logs/game1_server_error.log'
+[02:32][2021-01-30 02:32:01] opening '/home/wxl/moleserver/bin/logs/game1_server_error.log'
+[02:35][2021-01-30 02:35:51] opening '/home/wxl/moleserver/bin/logs/game1_server_error.log'
+[03:03][2021-01-30 03:03:23] opening '/home/wxl/moleserver/bin/logs/game1_server_error.log'
+[07:12][2021-02-01 07:12:30] opening '/home/wxl/moleserver_new/bin/logs/game1_server_error.log'
+[07:17] [ERR] SocketLinux.cpp:37 ReadCallback space:327680
+[07:17] [ERR] SocketLinux.cpp:41 ReadCallback readBuffer.GetBuffer()[0]:71
+[07:17] [ERR] SocketLinux.cpp:47 ReadCallback recv:190
+[07:17] [ERR] Socket.cpp:354 OnRead m_html5connected.GetVal():0
+[07:17] [ERR] Socket.cpp:397 OnRead PushMessage11:
+[07:17] [ERR] network.cpp:161 GetNetMessage mes.GetMaxCount():5000
+[07:17] [ERR] SocketLinux.cpp:37 ReadCallback space:327680
+[07:17] [ERR] SocketLinux.cpp:41 ReadCallback readBuffer.GetBuffer()[0]:129
+[07:17] [ERR] SocketLinux.cpp:47 ReadCallback recv:95
+[07:17] [ERR] Socket.cpp:354 OnRead m_html5connected.GetVal():1
+[07:17] [ERR] Socket.cpp:407 OnRead m_htmlMsgProcessed.GetVal():0
+[07:17] [ERR] Socket.cpp:418 OnRead m_buffer_pos:2
+[07:17] [ERR] Socket.cpp:420 OnRead m_packetheard.payloadFlags:129
+[07:17] [ERR] Socket.cpp:509 OnRead tmpTime:0
+[07:17] [ERR] Socket.cpp:510 OnRead IDD_SECOND_MSG_MAX_COUNT:50
+[07:17] [ERR] Socket.cpp:524 OnRead tmpTime:0
+[07:17] [ERR] Socket.cpp:553 OnRead in 333
+[07:17] [ERR] Socket.cpp:556 OnRead atoi(payload):0
+[07:17] [ERR] Socket.cpp:407 OnRead m_htmlMsgProcessed.GetVal():0
+[07:17] [ERR] Socket.cpp:412 OnRead GetReadBuffer().GetSize() < 2
+[07:17] [ERR] network.cpp:161 GetNetMessage mes.GetMaxCount():5000
+[07:17] [ERR] network.cpp:161 GetNetMessage mes.GetMaxCount():5000

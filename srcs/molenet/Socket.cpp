@@ -351,12 +351,12 @@ void NetClient::OnRead(uint32 size)
 		m_heartJitter = time(NULL);
 
 		//printf("NetClient::OnRead1:%d\n",size);
-
+		LOG_ERROR("m_html5connected.GetVal():%d",m_html5connected.GetVal());
 		if(m_html5connected.GetVal() == false)
 		{
 			GetReadBuffer().Read((uint8*)m_buffer+m_buffer_pos,size);
 			m_buffer_pos += size;
-
+			//LOG_ERROR("m_buffer:%s", m_buffer);
 			WebsocketHandshakeMessage request(m_buffer,m_buffer_pos);
 
 			if(request.Parse())
@@ -393,6 +393,9 @@ void NetClient::OnRead(uint32 size)
 				m_buffer_pos=0;
 				m_html5connected.SetVal(true);
 				memset(&m_packetheard,0,sizeof(m_packetheard));
+
+				LOG_ERROR("PushMessage11:");
+
 				sSocketMgr.PushMessage(MessageStru(MES_TYPE_ON_CONNECTED,(uint32)GetFd()));
 			}
 
@@ -401,20 +404,34 @@ void NetClient::OnRead(uint32 size)
 
 		while(true)
 		{
+		    LOG_ERROR("m_htmlMsgProcessed.GetVal():%d", m_htmlMsgProcessed.GetVal());
 		    if(m_htmlMsgProcessed.GetVal() == false)
 		    {
 		    	if(m_packetheard.payloadFlags == 0 && m_packetheard.basicSize == 0) {
 			    	if(GetReadBuffer().GetSize() < 2) {
+				    LOG_ERROR("GetReadBuffer().GetSize() < 2");
 			            return;
 			    	}
 
 			        GetReadBuffer().Read((uint8*)m_buffer+m_buffer_pos,2);
 			        m_buffer_pos += 2;
-
+				LOG_ERROR("m_buffer_pos:%d", m_buffer_pos);
 			        m_packetheard.payloadFlags = m_buffer[0];
+				LOG_ERROR("m_packetheard.payloadFlags:%d", m_packetheard.payloadFlags);
 			        if (m_packetheard.payloadFlags != 129){
 			        	memset(&m_packetheard,0,sizeof(m_packetheard));
-			            return;
+				    LOG_ERROR("m_packetheard.payloadFlags != 129");
+
+				    //wxl modify 
+				    masksOffset = 0;
+		    		    payloadSize = 0;
+		    		    m_buffer_pos = 0;
+				    m_htmlMsgProcessed.SetVal(false);
+				    memset(&m_packetheard,0,sizeof(m_packetheard));
+				    //deallocBytes(payload);
+				    //payload = NULL;
+				    continue;
+			            //return;
 			        }
 
 			        m_packetheard.basicSize = m_buffer[1] & 0x7F;		    		
@@ -429,6 +446,7 @@ void NetClient::OnRead(uint32 size)
 		        else if (m_packetheard.basicSize == 126)
 		        {
 		            if (GetReadBuffer().GetSize() < 2){
+				LOG_ERROR("22 GetReadBuffer().GetSize() < 2");
 		                return;
 		            }
 
@@ -441,6 +459,7 @@ void NetClient::OnRead(uint32 size)
 		        else if (m_packetheard.basicSize == 127)
 		        {
 		            if (GetReadBuffer().GetSize() < 8) {
+				LOG_ERROR("22 GetReadBuffer().GetSize() < 8");
 		                return;
 		            }
 
@@ -451,6 +470,7 @@ void NetClient::OnRead(uint32 size)
 		            masksOffset = 10;
 		        }
 		        else {
+			    LOG_ERROR("333 GetReadBuffer().GetSize()");
 		            return;
 		        }
 
@@ -459,6 +479,7 @@ void NetClient::OnRead(uint32 size)
 
             if (GetReadBuffer().GetSize()  < payloadSize+4)
             {
+		LOG_ERROR("GetReadBuffer().GetSize()  < payloadSize+4");
                 return;
             }
 
@@ -484,8 +505,12 @@ void NetClient::OnRead(uint32 size)
 
 				ulong tmpTime = (ulong)time(NULL) - m_readTimer.GetVal();
 
+				
+				LOG_ERROR("tmpTime:%d", tmpTime);
+				LOG_ERROR("IDD_SECOND_MSG_MAX_COUNT:%d", IDD_SECOND_MSG_MAX_COUNT);
 				if(tmpTime > 1)
 				{
+					LOG_ERROR("m_readMsgCount.GetVal():%d", m_readMsgCount.GetVal());
 					if(m_readMsgCount.GetVal() > IDD_SECOND_MSG_MAX_COUNT)
 					{
 						m_readMsgBool.SetVal(false);
@@ -496,7 +521,7 @@ void NetClient::OnRead(uint32 size)
 						m_readMsgCount.SetVal(0);
 					}
 				}
-
+				LOG_ERROR("tmpTime:%d", tmpTime);
 				if(tmpTime > 60)
 				{
 					m_readTimer.SetVal(0);
@@ -525,9 +550,10 @@ void NetClient::OnRead(uint32 size)
 							in = NULL;
 						}
 					}
-
+					LOG_ERROR("in 333");
 					if(in)
 					{
+						LOG_ERROR("atoi(payload):%d", atoi(payload));
 						if(atoi(payload) == IDD_MESSAGE_HEART_BEAT)
 						{
 							//printf("MES_TYPE_ON_READ1:%s\n",payload);
@@ -560,7 +586,7 @@ void NetClient::OnRead(uint32 size)
 		//m_readMutex.Release();
 		char str[256];
 		sprintf(str,"接收数据异常%s:\n",e.what());
-		LOG_DEBUG(str);
+		LOG_ERROR(str);
 
 		// 关闭这个客户端
 		Disconnect();

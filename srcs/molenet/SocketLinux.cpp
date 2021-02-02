@@ -34,13 +34,18 @@ void Socket::ReadCallback(uint32 len)
 	size_t space = readBuffer.GetSpace();
 	int bytes = 0;
 	int nread = 0;
-
+	LOG_ERROR("space:%d",space);
 	while((nread = recv(m_fd, readBuffer.GetBuffer(), space, 0)) > 0)
 	{
+		//LOG_ERROR("readBuffer.GetBuffer():%s", readBuffer.GetBuffer());
+		LOG_ERROR("readBuffer.GetBuffer()[0]:%d", ((uint8*)readBuffer.GetBuffer())[0]);
 		readBuffer.IncrementWritten(nread);
 		space = readBuffer.GetSpace();
         bytes+=nread;
 	}
+
+	LOG_ERROR("recv:%d",bytes);
+	//LOG_ERROR("readBuffer.GetBuffer():%s", readBuffer.GetBuffer());
 
 	if(bytes <= 0)
 	{
